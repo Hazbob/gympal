@@ -3,44 +3,48 @@ using GymPal.Helpers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Net.Http.Headers;
 using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 var domain = $"https://{builder.Configuration["Auth0:Domain"]}/";
+builder.Services.Configure<Auth0Secrets>(
+    builder.Configuration.GetSection("Auth0"));
+
+//Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
-    options.Authority = $"https://{builder.Configuration["Auth0:Domain"]}/";
-    options.Audience = builder.Configuration["Auth0:Audience"];
+    var audience =
+                   builder.Configuration["Auth0:Audience"];
+
+    options.Authority =
+          $"https://{builder.Configuration["Auth0:Domain"]}/";
+    options.Audience = audience;
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        NameClaimType = ClaimTypes.NameIdentifier
+        ValidateAudience = true,
+        ValidateIssuerSigningKey = true
     };
 });
 
-builder.Services
-      .AddAuthorization(options =>
-      {
-          options.AddPolicy(
-            "read:messages",
-            policy => policy.Requirements.Add(
-              new HasScopeRequirement("read:messages", domain)
-            )
-          );
-      });
-builder.Services.Configure<Auth0Secrets>(
-    builder.Configuration.GetSection("Auth0"));
 builder.Services.AddHttpClient();
-builder.Services.AddControllers();
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+        var clientOriginUrl = builder.Configuration["Auth0:ClientOriginUrl"];
+        policy.WithOrigins(
+            clientOriginUrl)
+            .WithHeaders(new string[] {
+                HeaderNames.ContentType,
+                HeaderNames.Authorization,
+            })
+            .WithMethods("GET")
+            .SetPreflightMaxAge(TimeSpan.FromSeconds(86400));
     });
 });
+builder.Services.AddControllers();
 #region Deps
 builder.Services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
 builder.Services.AddScoped<JwtHelper>();
