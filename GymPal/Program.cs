@@ -32,6 +32,15 @@ builder.Services.Configure<Auth0Secrets>(
     builder.Configuration.GetSection("Auth0"));
 builder.Services.AddHttpClient();
 builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 #region Deps
 builder.Services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
 builder.Services.AddScoped<JwtHelper>();
@@ -41,6 +50,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
