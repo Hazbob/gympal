@@ -1,19 +1,26 @@
 using GymPal.config;
+using GymPal.Data;
 using GymPal.Helpers;
+using GymPal.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Net.Http.Headers;
 using System.Security.Claims;
+using Testcontainers.PostgreSql;
 
 var builder = WebApplication.CreateBuilder(args);
 var domain = $"https://{builder.Configuration["Auth0:Domain"]}/";
 builder.Services.Configure<Auth0Secrets>(
     builder.Configuration.GetSection("Auth0"));
 
+var postgreSqlContainer = new PostgreSqlBuilder().Build();
+await postgreSqlContainer.StartAsync();
+
 //Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-.AddJwtBearer(options =>
+  .AddJwtBearer(options =>
 {
     var audience =
                    builder.Configuration["Auth0:Audience"];
@@ -45,9 +52,14 @@ builder.Services.AddCors(options =>
     });
 });
 builder.Services.AddControllers();
+builder.Services.AddDbContext<GymDbContext>(options =>
+{
+    var conn = postgreSqlContainer.GetConnectionString();
+    options.UseNpgsql(conn);
+});
 #region Deps
 builder.Services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
-builder.Services.AddScoped<JwtHelper>();
+builder.Services.AddTransient<JwtHelper>();
 #endregion
 
 builder.Services.AddEndpointsApiExplorer();
@@ -57,7 +69,7 @@ var app = builder.Build();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseUserDeserialiser();
 
 if (app.Environment.IsDevelopment())
 {
@@ -71,3 +83,5 @@ app.UseHttpsRedirection();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }

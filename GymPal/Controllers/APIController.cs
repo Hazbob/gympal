@@ -26,12 +26,12 @@ namespace GymPal.Controllers
 
         [HttpGet("private")]
         [Authorize]
-        public async Task<IActionResult> Private([FromHeader(Name = "Authorization")] string jwt)
+        public async Task<IActionResult> Private(string userId)
         {
             try
             {
-                var userId = await _jwtHelper.ParseUserFromJWT(jwt);
-                return Ok(new { userId });
+                //var userId = HttpContext.Items["userId"];
+                return Ok(new {userId});
             }
             catch (TokenNotYetValidException ex)
             {
