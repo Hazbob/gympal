@@ -4,9 +4,20 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
+using GymPal;
+using GymPal.Repositories.Plans;
+using GymPal.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 var domain = $"https://{builder.Configuration["Auth0:Domain"]}/";
+
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string"
+                                           + "'DefaultConnection' not found.");
+
+builder.Services.AddDbContext<GymPalDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
@@ -44,6 +55,8 @@ builder.Services.AddCors(options =>
 #region Deps
 builder.Services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
 builder.Services.AddScoped<JwtHelper>();
+builder.Services.AddScoped<IPlanRepository, PlanRepository>();
+builder.Services.AddScoped<IPlanService, PlanService>();
 #endregion
 
 builder.Services.AddEndpointsApiExplorer();
